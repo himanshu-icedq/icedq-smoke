@@ -1,0 +1,9 @@
+{
+  "name": "icedq-smoke",
+  "private": true,
+  "type": "module",
+  "description": "Ephemeral iceDQ UI smoke. Playwright is Microsoft's official package.",
+  "dependencies": {
+    "playwright": "^1.54.2"
+  }
+}

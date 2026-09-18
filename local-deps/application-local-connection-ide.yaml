@@ -1,0 +1,165 @@
+# Same as application-local-compose-connection.yaml but for running
+# connection-repo-service DIRECTLY on the host (IDE/plain JVM), not inside
+# docker. Compose-internal hostnames swapped to localhost + the REAL
+# published port (check `docker compose ps` if you change docker-compose.yml
+# — postgres is remapped to 15432 host-side).
+---
+info:
+  app:
+    hostname: http://localhost:9200
+spring:
+  cloud:
+    vault:
+      uri: http://localhost:8200
+      enabled: true
+      authentication: TOKEN
+      token: root
+  jpa:
+    open_in_view: false
+    show_sql: true
+    format_sql: true
+    properties:
+      hibernate:
+        id:
+          db_structure_naming_strategy: legacy
+        default_schema: conn
+    hibernate:
+      ddl-auto: none
+      current-session-context-class: thread
+  datasource:
+    url: jdbc:postgresql://localhost:15432/icedq_db
+    driver-class-name: org.postgresql.Driver
+    username: dbAdmin
+    password: devpassword
+    hikari:
+      minimumIdle: 1
+      maximumIdle: 2
+      maximumPoolSize: 25
+      idleTimeout: 15000
+      connectionTimeout: 300000
+      leakDetectionThreshold: 15000
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: rabbitmq
+    password: rabbitmq
+    isssl: false
+  liquibase:
+    change-log: database/changelog/changelog-master.xml
+    enabled: true
+    liquibaseSchema: liquibase
+    parameters:
+      schema: ${spring.jpa.properties.hibernate.default_schema}
+
+icedq:
+  outbound-service:
+    admin:
+      base-url: http://localhost:9100
+      workspace: /api/v1/workspaces
+      resources: /api/v1/workspaces/search
+      hashKey: /api/v1/setting/info/{key}
+      workspace-info: /api/v1/workspaces/{id}
+      domain-search: /api/v1/domains/search
+      authorization-evaluate: /api/v1/authorization:evaluate
+      default-screen: /api/v1/screens/default/search
+      search-folder: /api/v1/folders/search
+      create-folder: /api/v1/folders
+      search-integration: /api/v1/integrations/search
+    rule-repo:
+      base-url: http://localhost:9300
+      parameter-info: /api/v1/parameters/
+      file-schema: /api/v1/file-schema/{id}:getLayout
+      file-schema-info: /api/v1/file-schema/{id}
+    workflow-orchestration:
+      base-url: http://localhost:9300
+      create-task-instance: /api/v1/taskruns
+      fetch-task-instance: /api/v1/internal/taskruns
+      previous-task-instance: /api/v1/internal/taskruns/{id}:previousTaskRun
+      crawler-task-instance-representation-by-id: /api/v1/internal/taskruns/crawljobs/{id}
+      crawler-task-instance-by-id: /api/v1/taskruns/{id}
+      task-instance-search: /api/v1/taskruns/search
+      task-run-list: /api/v1/internal/taskruns/list
+    scheduler:
+      base-url: http://localhost:1
+      create-schedule: /api/v1/schedules
+      run-schedule: /api/v1/schedules/{id}:run
+      batch-delete-schedule: /api/v1/schedules:batchDelete
+      delete-schedule: /api/v1/schedules/{id}
+      fetch-schedule: /api/v1/schedules/{id}
+      update-schedule: /api/v1/schedules/{id}
+      pause-schedule: api/v1/schedules/{id}:pause
+      resume-schedule: api/v1/schedules/{id}:resume
+  security:
+    oidc:
+      base-url: http://localhost:8081
+      auth-url: ${icedq.security.oidc.base-url}/auth
+      client-id: icedq.admin-service
+      client-secret: 0edc406d-ba4a-477c-96f2-72be355d6d98
+      executer-client-id: icedq.executor
+      executer-client-secret: 0edc406d-ba4a-477c-96f2-72be355d6d98
+      realm: iam.icedq
+      master-url: ${icedq.security.oidc.base-url}/auth/admin/realms/${icedq.security.oidc.realm}
+      issuer-url: ${icedq.security.oidc.base-url}/auth/realms/${icedq.security.oidc.realm}
+    permitted-endpoints:
+      - /index.html
+      - /swagger-ui.html
+      - /swagger-ui/*
+      - /v3/**
+      - /api/v1/oauth/callback
+      - /actuator/**
+    enabled: true
+    api-matcher: /**
+    allowed-methods:
+      - OPTIONS
+      - POST
+      - GET
+      - PUT
+      - DELETE
+    allowed-origins:
+      - '*'
+    setting:
+      hashedKey: A7cCPpRp66Kvz9j8HRpq3mea7yTtccstK0wSLsp5k18=
+  connServertypes:
+    file:
+      - File
+      - FileDB
+    database:
+      - RDBMS
+      - CloudDB
+    report:
+      - BIReport
+    apps:
+      - AppDB
+  oauth:
+    default-uiRedirectUrl: ${icedq.outbound-service.admin.base-url}/connection-ui/#/connection-repo
+    connection-uiRedirectUrl: http://localhost:9200/connection-ui/#/
+  validation:
+    name:
+      max-length: 500
+    description:
+      max-length: 2000
+  row:
+    fetch-row: 10
+    max-row-scan-depth: 100
+  rsdPathDir: /app/RSD
+  metadataPathDir: /app/metadata
+  krbFilePathDir: /app/KRB
+  ticketCachePath: /app/krb_tickets
+  krb:
+    property:
+      name:
+        useSubjectCredsOnly: false
+        krb5Debug: true
+  instance-log-dir: /app/icedq-instance-logs
+  crawler:
+    file-chunk-size: 2000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
+      show-components: always

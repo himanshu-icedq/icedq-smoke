@@ -1,0 +1,87 @@
+# Derived from ng-icedq-notification-service/src/main/resources/application-dev.yml
+# (the generic one, not a numbered host variant) -- same delta-on-top-of-dev
+# pattern as connection/workflow: activate `dev` first for all the real
+# defaults (outbound-service paths, cache, azure, executor-service), then
+# this profile last to override just the network-specific values.
+spring:
+  cloud:
+    vault:
+      uri: http://localhost:8200
+      enabled: true
+      authentication: TOKEN
+      token: root
+  datasource:
+    url: jdbc:postgresql://localhost:15432/icedq_db
+    driver: org.postgresql.Driver
+    username: dbAdmin
+    password: devpassword
+  liquibase:
+    # dev.yml disables this -- assumes tables already exist from a one-time
+    # run against their shared Azure postgres. A fresh local DB has none:
+    # boot fails eagerly on a @PostConstruct query against
+    # notification.ice_integration_triggers. Must actually run here.
+    enabled: true
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: rabbitmq
+    password: rabbitmq
+    exchange: amq.fanout
+    queue: public.icedq.notification.queue
+    routingkey: xx23-hj98-3459-yydk
+    isssl: false
+  temporal:
+    namespace: default
+    connection:
+      target: 127.0.0.1:7233
+
+icedq:
+  security:
+    oidc:
+      base-url: http://localhost:8081
+      auth-url: ${icedq.security.oidc.base-url}/auth
+      client-id: icedq.admin-service
+      client-secret: 0edc406d-ba4a-477c-96f2-72be355d6d98
+      executer-client-id: icedq.executor
+      executer-client-secret: 0edc406d-ba4a-477c-96f2-72be355d6d98
+      realm: iam.icedq
+      master-url: ${icedq.security.oidc.base-url}/auth/admin/realms/${icedq.security.oidc.realm}
+      issuer-url: ${icedq.security.oidc.base-url}/auth/realms/${icedq.security.oidc.realm}
+    permitted-endpoints:
+      - /index.html
+      - /swagger-ui.html
+      - /swagger-ui/*
+      - /v3/**
+      - /actuator/**
+
+  # Outbound paths come from the image's dev-74 profile; override only the
+  # compose-network base URLs here (same pattern as workflow/datawarehouse).
+  outbound-service:
+    admin:
+      base-url: http://localhost:9100
+    workflow-instance:
+      base-url: http://localhost:9300
+    rule-repo:
+      base-url: http://localhost:9300
+    dataprep:
+      base-url: http://localhost:1
+  # Browser-facing links in notification emails (ui-service appends /rule-ui, etc.)
+  universal:
+    base-url: http://localhost:8091
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  health:
+    # No local SMTP server -- MailHealthIndicator blocks ~130s per check
+    # trying to connect (full OS-level connect timeout), which made
+    # /actuator/health itself unusably slow. Same fix admin's
+    # application-local.yaml already uses.
+    mail:
+      enabled: false
+  endpoint:
+    health:
+      show-details: always
+      show-components: always

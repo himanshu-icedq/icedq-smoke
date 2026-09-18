@@ -1,0 +1,109 @@
+# Derived from ng-icedq-report-testing-service (artifactId "bi-testing")
+# src/main/resources/application-dev-74.yml -- default active profile
+# "dev9" has no matching file in the repo (stale/broken default), dev-74 is
+# the real usable one. No spring.cloud.vault / smi-hcp here at all (unlike
+# notification/connection) -- this service's own "icedq.security.vault"
+# block talks to Vault's HTTP API directly for encrypt/decrypt, not via the
+# secret-manager-integration library.
+spring:
+  liquibase:
+    # dev-74 disables this (assumes tables already exist from a one-time
+    # run against their shared dev DB) -- same gotcha as notification:
+    # a fresh local DB has none, so this must actually run here.
+    enabled: true
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: rabbitmq
+    password: rabbitmq
+    exchange: amq.fanout
+    queue: public.icedq.bitesting.queue
+    routingkey: xx23-hj98-3459-yydk
+    isssl: false
+    producers:
+      - type: event
+        exchange:
+          name: amq.fanout
+          durable: true
+          auto-delete: false
+          type: fanout
+        queues:
+          - name: public.icedq.bitesting.queue
+            durable: true
+            auto-delete: false
+            dead-letter-enabled: false
+            routing-key: xx23-hj98-3459-yydk
+            type: event
+      - type: engine
+        exchange:
+          name: amq.direct
+          durable: true
+          auto-delete: false
+          type: direct
+        queues:
+          - name: private.icedq.workflow.instance.response.queue
+            durable: true
+            auto-delete: false
+            dead-letter-enabled: false
+            routing-key: private-icedq-workflow-instance-response
+            type: workflow-instance-response
+            concurrent-consumers: 1
+  datasource:
+    url: jdbc:postgresql://localhost:15432/icedq_db
+    driver: org.postgresql.Driver
+    username: dbAdmin
+    password: devpassword
+  temporal:
+    namespace: default
+    connection:
+      target: 127.0.0.1:7233
+
+icedq:
+  instance-log-dir: /tmp/logs
+  # Not running in this stack (admin-service runs natively on the Windows
+  # host, unreachable from a container's bridge network). Harmless
+  # placeholder -- every outbound-service call here is per-request
+  # (looking up a connection/workspace/rule while running a BI test), never
+  # on the boot path.
+  outbound-service:
+    admin:
+      base-url: http://localhost:1
+    connection-repo:
+      base-url: http://localhost:1
+    workflow-orchestration:
+      base-url: http://localhost:1
+    rule-repo:
+      base-url: http://localhost:1
+    workflow-instance:
+      base-url: http://localhost:1
+  security:
+    oidc:
+      base-url: http://localhost:8081
+      auth-url: ${icedq.security.oidc.base-url}/auth
+      client-id: icedq.executor
+      client-secret: 0edc406d-ba4a-477c-96f2-72be355d6d98
+      realm: iam.icedq
+      master-url: ${icedq.security.oidc.base-url}/auth/admin/realms/${icedq.security.oidc.realm}
+      issuer-url: ${icedq.security.oidc.base-url}/auth/realms/${icedq.security.oidc.realm}
+    permitted-endpoints:
+      - /index.html
+      - /swagger-ui.html
+      - /swagger-ui/*
+      - /v1/**
+      - /actuator/**
+    vault:
+      base-url: http://localhost:8200
+      # local vault-init enables icedq-secretvault, not the remote icedqvault mount
+      path: /v1/icedq-secretvault/data/ice-master-key
+      encryptpath: /v1/hashing/encrypt/
+      decryptpath: /v1/hashing/decrypt/
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
+      show-components: always

@@ -1,0 +1,147 @@
+# Derived from workflow/src/main/resources/application-dev.yaml — same
+# pattern as admin's and connection's local-compose profiles. Uses the same
+# smi/smi-hcp secret-manager-integration library as admin (confirmed via
+# base application.yaml's spring.liquibase.parameters block and
+# spring.profiles.active default), so the same TOKEN-auth vault override
+# applies (dev vault has no AppRole to bootstrap).
+---
+spring:
+  cloud:
+    vault:
+      uri: http://vault:8200
+      enabled: true
+      authentication: TOKEN
+      token: root
+  datasource:
+    url: jdbc:postgresql://postgres:5432/icedq_db
+    driver: org.postgresql.Driver
+    username: dbAdmin
+    password: devpassword
+    hikari:
+      minimumIdle: 1
+      maximumIdle: 2
+      maximumPoolSize: 25
+      idleTimeout: 15000
+      connectionTimeout: 300000
+      leakDetectionThreshold: 60000
+      maxLifetime: 600000
+  rabbitmq:
+    host: rabbitmq
+    port: 5672
+    username: rabbitmq
+    password: rabbitmq
+    isssl: false
+    management:
+      base-url: http://rabbitmq:15672/rabbitmq/api # management plugin not enabled in this stack; bean construction just needs a value, not reachability
+  temporal:
+    connection:
+      target: temporal:7233
+    namespace: default
+
+icedq:
+  domain: http://localhost:9300
+  security:
+    oidc:
+      base-url: http://keycloak:8080
+      auth-url: ${icedq.security.oidc.base-url}/auth
+      client-id: icedq.executor
+      client-secret: 0edc406d-ba4a-477c-96f2-72be355d6d98
+      realm: iam.icedq
+      master-url: ${icedq.security.oidc.base-url}/auth/admin/realms/${icedq.security.oidc.realm}
+      issuer-url: ${icedq.security.oidc.base-url}/auth/realms/${icedq.security.oidc.realm}
+    permitted-endpoints:
+      - /index.html
+      - /swagger-ui.html
+      - /swagger-ui/*
+      - /v3/**
+      - /actuator/**
+    enabled: true
+    api-matcher: /**
+    allowed-methods:
+      - OPTIONS
+      - POST
+      - GET
+      - PUT
+      - DELETE
+    allowed-origins:
+      - '*'
+    setting:
+      hashedKey: A7cCPpRp66Kvz9j8HRpq3mea7yTtccstK0wSLsp5k18=
+  outbound-service:
+    admin:
+      base-url: http://icedq-admin-smoke:9100
+      authorization-evaluate: /api/v1/authorization:evaluate
+      default-screen: /api/v1/screens/default/search
+      download-url: http://icedq-admin-smoke:9100
+      filter-users: /api/v1/ui/filter/users
+      folder-info: /api/v1/folders/{folderId}
+      has-permission: /api/v1/authorization:evaluate
+      hashKey: /api/v1/setting/info/{key}
+      license-info: /api/v1/license
+      resources: /api/v1/roles/resources/{memberType}/{resourceType}
+      search-accounts: /api/v1/accounts/search
+      search-folders: /api/v1/folders/search
+      search-library: api/v1/libraries/search
+      search-path: /api/v1/fields/search
+      workspace-info: /api/v1/workspaces/{workspaceId}
+      workspace-list: /api/v1/workspaces/search
+      workspaces: /api/v1/workspaces/search
+      fetch-license: /api/v1/license
+      fetch-child-folders: /api/v1/internal/folder/{folderId}/nested-flat-list
+      general-setting-info: /api/v1/setting/general/{id}
+    bitesting:
+      base-url: http://localhost:1
+      data-path: /api/v1/internal/bisnapshotruns/data-path
+      search-report: /api/v1/bireport/search
+      search-snapshot: /api/v1/bisnapshots/search
+    connection-repo:
+      base-url: http://icedq-connection-smoke:9200
+      conn-info: /api/v1/sources/{id}
+      conn-server-info: /api/v1/connectors/{id}
+      connection-info: /api/v1/connections/{id}
+      connection-search: /api/v1/connections/search
+      latest-file: /api/v1/connections/{id}:getLatestFile
+      search-path: /api/v1/connections/search
+      secret: /api/v1/internal/secret/{id}
+    rule-repo:
+      base-url: http://icedq-workflow-smoke:9300
+      file-schema-info: /api/v1/file-schema/{id}
+      param-info: /api/v1/parameters/{paramId}
+      rule-info: /api/v1/rules/{ruleId}
+      search-path: /api/v1/parameters/search
+      search-rules: /api/v1/rules/search
+      udf-info: /api/v1/custom-classes/internal
+    workflow-instance:
+      base-url: http://icedq-workflow-smoke:9300
+      generate-instance-id: /api/v1/workflowruns:generateInstanceId
+      instance: /api/v1/internal/workflowruns/{instanceId}/result
+      workflow-instance-child: /api/v1/instance/child/{parentInstanceId}/{parentObjectId}
+    workflow-orchestration:
+      base-url: http://icedq-workflow-smoke:9300
+      create-task-instance: /api/v1/taskruns
+      find-workflow-for-object: /api/v1/workflows:fetchWorkflowId
+      get-task-runs: /api/v1/taskruns/{id}
+      update-task-instance: /api/v1/taskruns/{id}
+      workflow-id: /api/v1/workflows:fetchWorkflowId
+      workflow-ids: /api/v1/workflows:fetchWorkflowIds
+      workflow-info: /api/v1/workflows/{workflowId}
+  storage:
+    platform: local
+    storage: local
+    uri: /app/icedq-instance-logs
+  universal:
+    base-url: http://icedq-workflow-smoke:9300
+  export-import:
+    export-files-dir: /app/export-import-data/export-files
+    import-files-dir: /app/export-import-data/import-files
+    logs-dir: /app/export-import-data/logs
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
+      show-components: always

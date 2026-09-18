@@ -1,0 +1,313 @@
+[
+  {
+    "id": "amazon-bedrock",
+    "name": "Amazon Bedrock",
+    "integrationCategory": "genai",
+    "description": "Amazon Bedrock Foundation Models Integration",
+    "models": [
+      {
+        "name": "gpt-oss-120b",
+        "value": "openai.gpt-oss-120b-1:0"
+      },
+      {
+        "name": "Claude Sonnet 4.5",
+        "value": "anthropic.claude-sonnet-4-5-20250929-v1:0"
+      },
+      {
+        "name": "Claude Sonnet 4",
+        "value": "anthropic.claude-sonnet-4-20250514-v1:0"
+      },
+      {
+        "name": "Claude 3.7 Sonnet",
+        "value": "anthropic.claude-3-7-sonnet-20250219-v1:0"
+      },
+      {
+        "name": "Claude 3.5 Sonnet",
+        "value": "anthropic.claude-3-5-sonnet-20240620-v1:0"
+      },
+      {
+        "name": "Claude 3.5 Sonnet v2",
+        "value": "anthropic.claude-3-5-sonnet-20241022-v2:0"
+      },
+      {
+        "name": "Claude 3 Sonnet",
+        "value": "anthropic.claude-3-sonnet-20240229-v1:0"
+      },
+      {
+        "name": "Claude Haiku 4.5",
+        "value": "anthropic.claude-haiku-4-5-20251001-v1:0"
+      },
+      {
+        "name": "Nova Pro",
+        "value": "amazon.nova-pro-v1:0"
+      }
+    ]
+  },
+  {
+    "id": "anthropic",
+    "name": "Anthropic",
+    "integrationCategory": "genai",
+    "description": "Anthropic LLM Integration",
+    "models": [
+      {
+        "name": "Claude Sonnet 4.5",
+        "value": "claude-sonnet-4-5"
+      },
+      {
+        "name": "Claude Sonnet 4",
+        "value": "claude-sonnet-4-20250514"
+      },
+      {
+        "name": "Claude Opus 4.1",
+        "value": "claude-opus-4-1-20250805"
+      },
+      {
+        "name": "Claude Opus 4",
+        "value": "claude-opus-4-20250514"
+      },
+      {
+        "name": "Claude Haiku 4.5",
+        "value": "claude-haiku-4-5-20251001"
+      }
+    ]
+  },
+  {
+    "id": "azure-ai",
+    "name": "Azure AI",
+    "integrationCategory": "genai",
+    "description": "Azure OpenAI Integration",
+    "models": [
+      {
+        "name": "GPT-5",
+        "value": "gpt-5"
+      },
+      {
+        "name": "GPT-5 pro",
+        "value": "gpt-5-pro"
+      },
+      {
+        "name": "GPT-4.1",
+        "value": "gpt-4.1"
+      }
+    ]
+  },
+  {
+    "id": "google-ai",
+    "name": "Gemini",
+    "integrationCategory": "genai",
+    "description": "Google AI LLM Integration",
+    "models": [
+      {
+        "name": "Gemini 2.5 Flash",
+        "value": "gemini-2.5-flash"
+      },
+      {
+        "name": "Gemini 2.0 Flash",
+        "value": "gemini-2.0-flash"
+      },
+      {
+        "name": "Gemini 2.5 Pro",
+        "value": "gemini-2.5-pro"
+      }
+    ]
+  },
+  {
+    "id": "open-ai",
+    "name": "Open AI",
+    "integrationCategory": "genai",
+    "description": "Open AI LLM Integration",
+    "models": [
+      {
+        "name": "GPT-5",
+        "value": "gpt-5"
+      },
+      {
+        "name": "GPT-4.1",
+        "value": "gpt-4.1"
+      }
+    ]
+  },
+  {
+    "id": "email",
+    "name": "Email",
+    "integrationCategory": "notification",
+    "description": "Email Integration",
+    "models": []
+  },
+  {
+    "id": "ms-teams",
+    "name": "Microsoft Teams",
+    "integrationCategory": "notification",
+    "description": "Microsoft Teams Integration",
+    "models": []
+  },
+  {
+    "id": "slack",
+    "name": "Slack",
+    "integrationCategory": "notification",
+    "description": "Slack Integration",
+    "models": []
+  },
+  {
+    "id": "ado",
+    "name": "Azure DevOps",
+    "integrationCategory": "test-management",
+    "description": "Azure DevOps Integration",
+    "models": []
+  },
+  {
+    "id": "zephyr",
+    "name": "Zephyr",
+    "integrationCategory": "test-management",
+    "description": "Zephyr Integration.",
+    "models": []
+  },
+  {
+    "id": "xray-cloud",
+    "name": "Xray Cloud",
+    "integrationCategory": "test-management",
+    "description": "Xray Cloud Integration.",
+    "models": [],
+    "configurations": {
+      "integrationBehaviours": [
+        {
+          "label": "Rule Publish",
+          "entityType": "Rule",
+          "eventType": "Publish",
+          "visible": true,
+          "actions": [
+            {
+              "id": "XrayTestCase",
+              "name": "Create Test Case",
+              "selected": true
+            }
+          ]
+        },
+        {
+          "label": "Rule Run",
+          "entityType": "Rule",
+          "eventType": "Execute",
+          "visible": true,
+          "actions": [
+            {
+              "id": "XrayTestExecution",
+              "name": "Create Test Execution",
+              "selected": true
+            },
+            {
+              "id": "XraySubTestExecution",
+              "name": "Create Sub Test Execution"
+            }
+          ]
+        },
+        {
+          "label": "Workflow Publish",
+          "entityType": "Workflow",
+          "eventType": "Publish",
+          "visible": true,
+          "actions": [
+            {
+              "id": "XrayTestCase",
+              "name": "Create Test Case"
+            },
+            {
+              "id": "XrayCreateTestSetAndAddTestToTestSet",
+              "name": "Create Test Set",
+              "selected": true
+            }
+          ]
+        },
+        {
+          "label": "Workflow Run",
+          "id": "workflowRun",
+          "entityType": "Workflow",
+          "eventType": "Execute",
+          "visible": true,
+          "actions": [
+            {
+              "id": "XrayWorkflowExecution",
+              "name": "Create Test Execution"
+            }
+          ]
+        },
+        {
+          "label": "Rule/Workflow Supported Actions",
+          "entityType": "",
+          "eventType": "Action",
+          "visible": false,
+          "actions": [
+            {
+              "id": "XRayLinkTestCase",
+              "name": "Link Test Case",
+              "selected": true
+            },
+            {
+              "id": "XRayUnlinkTestCase",
+              "name": "Unlink Test Case",
+              "selected": true
+            },
+            {
+              "id": "XRayLinkTestPlan",
+              "name": "Link Test Plan",
+              "selected": true
+            },
+            {
+              "id": "XRayLinkStory",
+              "name": "Link Story",
+              "selected": true
+            },
+            {
+              "id": "XRayUnLinkTestPlan",
+              "name": "Unlink Test Plan",
+              "selected": true
+            },
+            {
+              "id": "XRayUnLinkStory",
+              "name": "Unlink Story",
+              "selected": true
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "webhook",
+    "name": "Webhook",
+    "integrationCategory": "webhook",
+    "description": "Webhook Integration.",
+    "models": [],
+    "configurations": {
+      "integrationBehaviours": [
+        {
+          "label": "Rule Run",
+          "entityType": "Rule",
+          "eventType": "Execute",
+          "description": "Fires when a rule execution fails (Default workflow type)",
+          "visible": true,
+          "actions": [
+            {
+              "id": "WebhookRuleExecution",
+              "name": "Run Rule",
+              "selected": true
+            }
+          ]
+        },
+        {
+          "label": "Workflow Run",
+          "entityType": "Workflow",
+          "eventType": "Execute",
+          "description": "Fires when a custom workflow has one or more activities that failed",
+          "visible": true,
+          "actions": [
+            {
+              "id": "WebhookWorkflowExecution",
+              "name": "Run Workflow",
+              "selected": true
+            }
+          ]
+        }
+      ]
+    }
+  }
+]

@@ -1,0 +1,150 @@
+# Derived from ng-icedq-scheduler/src/main/resources/application-dev.yml.
+# Hostnames swapped to localhost:<host-published-port> (run-scheduler.sh
+# runs --network host). This service has no spring.cloud.vault block
+# (unlike admin/connection/workflow) -- it only talks to vault via
+# icedq.security.vault's REST paths, both point at the same real dev-mode
+# vault:8200.
+#
+# temporal.connection.target uses 127.0.0.1, NOT "localhost": the Temporal
+# Java SDK's gRPC client (eagerly started at boot, unlike admin's lazy
+# usage) hit DEADLINE_EXCEEDED resolving "localhost" under --network host
+# in this WSL2 environment -- a real, reproducible flakiness in gRPC's own
+# name resolution, not a connectivity problem (temporal:7233 was reachable
+# via plain TCP the whole time). Skipping DNS resolution with a literal IP
+# fixed it.
+---
+spring:
+  jpa:
+    properties:
+      hibernate:
+        default_schema: scheduler
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: rabbitmq
+    password: rabbitmq
+    isssl: false
+    producers:
+      - type: event
+        exchange:
+          name: amq.fanout
+          durable: true
+          auto-delete: false
+          type: fanout
+        queues:
+          - name: public.icedq.schedular.queue
+            durable: true
+            auto-delete: false
+            dead-letter-enabled: false
+            routing-key: xx23-hj98-3459-yydk
+            type: event
+      - type: engine
+        exchange:
+          name: amq.direct
+          durable: true
+          auto-delete: false
+          type: direct
+        queues:
+          - name: private.icedq.workflow.instance.request.queue
+            durable: true
+            auto-delete: false
+            dead-letter-enabled: false
+            routing-key: private-icedq-workflow-instance-request
+            type: workflow-instance-request
+      - type: crawler
+        exchange:
+          name: amq.direct
+          durable: true
+          auto-delete: false
+          type: direct
+        queues:
+          - name: private.icedq.connection.crawler.request.queue
+            durable: true
+            auto-delete: false
+            dead-letter-enabled: false
+            routing-key: private-icedq-connection-crawler-request
+            type: connection-crawler-request
+    event-consumer:
+      queue:
+        name: public.icedq.schedular.queue
+        durable: true
+        auto-delete: false
+        dead-letter-enabled: false
+        concurrent-consumers: 1
+  datasource:
+    url: jdbc:postgresql://localhost:15432/icedq_db
+    driver: org.postgresql.Driver
+    username: dbAdmin
+    password: devpassword
+    hikari:
+      minimumIdle: 1
+      maximumIdle: 2
+      maximumPoolSize: 25
+      idleTimeout: 15000
+      connectionTimeout: 300000
+      leakDetectionThreshold: 15000
+      schema: scheduler
+  temporal:
+    connection:
+      target: 127.0.0.1:7233
+    namespace: default
+
+icedq:
+  instance-log-dir: /app/icedq-instance-logs
+  outbound-service:
+    admin:
+      base-url: http://localhost:9100
+      has-permission: /api/v1/authorization:evaluate
+      workspace-info: /api/v1/workspaces/{id}
+      calendar-info: /api/v1/calendars/{id}
+      folder-info: /api/v1/folders/{id}
+      default-calendar-info: /api/v1/calendars:isDefault
+    workflow-instance:
+      base-url: http://localhost:9300
+      generate-instance-id: /api/v1/workflowruns:generateInstanceId
+      trigger: /api/v1/workflowruns:trigger
+    workflow-orchestration:
+      base-url: http://localhost:9300
+      create-task-instance: /api/v1/taskruns
+  security:
+    oidc:
+      base-url: http://localhost:8081
+      auth-url: ${icedq.security.oidc.base-url}/auth
+      client-id: icedq.executor
+      client-secret: 0edc406d-ba4a-477c-96f2-72be355d6d98
+      realm: iam.icedq
+      master-url: ${icedq.security.oidc.base-url}/auth/admin/realms/${icedq.security.oidc.realm}
+      issuer-url: ${icedq.security.oidc.base-url}/auth/realms/${icedq.security.oidc.realm}
+    permitted-endpoints:
+      - /index.html
+      - /swagger-ui.html
+      - /swagger-ui/*
+      - /v1/**
+      - /actuator/**
+    enabled: true
+    api-matcher: /**
+    allowed-methods:
+      - OPTIONS
+      - POST
+      - GET
+      - PUT
+      - DELETE
+    allowed-origins:
+      - '*'
+    setting:
+      hashed-key: A7cCPpRp66Kvz9j8HRpq3mea7yTtccstK0wSLsp5k18=
+    vault:
+      base-url: http://localhost:8200
+      path: /v1/icedqvault/data/ice-master-key
+      encryptpath: /v1/hashing/encrypt/
+      decryptpath: /v1/hashing/decrypt/
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
+      show-components: always

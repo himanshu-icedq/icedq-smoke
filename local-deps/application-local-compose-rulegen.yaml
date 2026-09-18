@@ -1,0 +1,152 @@
+# Derived from ng-icedq-rulegen-service/src/main/resources/application-qa.yaml
+# (no application-dev*.yaml exists in this repo -- qa is the closest real
+# environment config). Hostnames swapped to this compose stack's service
+# names, vault auth switched from AppRole to TOKEN.
+---
+info:
+  app:
+    hostname: http://rulegen:9323
+spring:
+  cloud:
+    vault:
+      uri: http://localhost:8200
+      enabled: true
+      authentication: TOKEN
+      token: root
+  jpa:
+    open_in_view: false
+    show_sql: true
+    format_sql: true
+    properties:
+      hibernate:
+        id:
+          db_structure_naming_strategy: legacy
+        default_schema: brg
+    hibernate:
+      ddl-auto: none
+      dialect: org.hibernate.dialect.PostgreSQL95Dialect
+  datasource:
+    url: jdbc:postgresql://localhost:15432/icedq_db
+    driver: org.postgresql.Driver
+    username: dbAdmin
+    password: devpassword
+    hikari:
+      minimumIdle: 1
+      maximumIdle: 2
+      maximumPoolSize: 25
+      idleTimeout: 15000
+      connectionTimeout: 300000
+      leakDetectionThreshold: 15000
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: rabbitmq
+    password: rabbitmq
+    queue: public.icedq.rulegen.queue
+    producers:
+      - type: event
+        exchange:
+          name: amq.fanout
+          durable: true
+          auto-delete: false
+          type: fanout
+        queues:
+          - name: public.icedq.rulegen.queue
+            durable: true
+            auto-delete: false
+            dead-letter-enabled: false
+            routing-key: xx23-hj98-3459-yydk
+            type: event
+  liquibase:
+    change-log: database/changelog/changelog-master.xml
+    enabled: true
+    liquibaseSchema: liquibase
+    parameters:
+      schema: ${spring.jpa.properties.hibernate.default_schema}
+
+icedq:
+  logs: /app/icedq-rulegen/logs/entities
+  export-file-row-limit: 20000
+  security:
+    oidc:
+      base-url: http://localhost:8081
+      auth-url: ${icedq.security.oidc.base-url}/auth
+      client-id: icedq.admin-service
+      client-secret: 0edc406d-ba4a-477c-96f2-72be355d6d98
+      executer-client-id: icedq.executor
+      executer-client-secret: 0edc406d-ba4a-477c-96f2-72be355d6d98
+      realm: iam.icedq
+      master-url: ${icedq.security.oidc.base-url}/auth/admin/realms/${icedq.security.oidc.realm}
+      issuer-url: ${icedq.security.oidc.base-url}/auth/realms/${icedq.security.oidc.realm}
+    permitted-endpoints:
+      - /index.html
+      - /v3/**
+      - /actuator/**
+    enabled: true
+    api-matcher: /**
+    allowed-methods:
+      - OPTIONS
+      - POST
+      - GET
+      - PUT
+      - DELETE
+    allowed-origins:
+      - '*'
+  queue:
+    inbound:
+      events:
+        - publish-rule
+        - generate-rule
+  outbound-service:
+    admin:
+      base-url: http://localhost:9100
+      authorization-evaluate: /api/v1/authorization:evaluate
+      workspace-info: /api/v1/workspaces/{id}
+      folder-info: /api/v1/folders/{id}
+      default-screen: /api/v1/screens/default/search
+      license-info: /api/v1/license
+      folder-search: /api/v1/folders/search
+    connection-repo:
+      base-url: http://localhost:1 # connection not running in this stack right now
+      connection-info-source: /api/v1/sources/{id}
+      connection-info: /api/v1/connections/{id}
+      connection-search: /api/v1/connections/search
+      column-search: /api/v1/columns
+      column-metadata: /api/v1/columns
+      table-metadata: /api/v1/tables
+      generate-layout: /api/v1/layouts
+      preview-data: /api/v1/data
+    workflow-orchestration:
+      base-url: http://localhost:9300
+      create-task-instance: /api/v1/taskruns
+      update-task-instance: /api/v1/taskruns/{id}
+      create-workflow: /api/v1/workflows
+      update-workflow: /api/v1/workflows/{id}
+      fetch-workflow: /api/v1/workflows:fetchWorkflowId
+    rule-repo:
+      base-url: http://localhost:9300
+      external-rule-save: /api/v1/rules
+      internal-rule-save: /api/v1/internal/rules
+      delete-rule: /api/v1/rules:batchDelete
+      publish-rule: /api/v1/create
+      save-file-schema: /api/v1/internal/file-schema
+      update-file-schema: /api/v1/file-schema/{id}
+      external-rule-update: /api/v1/rules/{id}
+      published-rule: /api/v1/internal/rules/{id}:publish
+    notification:
+      base-url: http://localhost:1 # notification not running in this stack right now
+      create-subscriptions: /api/v1/subscriptions
+      update-subscriptions: /api/v1/subscriptions/{id}
+  instance-log-dir: /app/icedq-instance-logs
+icedq.properties:
+  file.layout.column.separator: "|"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
+      show-components: always

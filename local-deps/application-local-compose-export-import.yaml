@@ -1,0 +1,118 @@
+# Derived from ng-export-import/src/main/resources/application-dev-82.yaml.
+# No vault/liquibase for this service (jOOQ, reads schemas other services'
+# own liquibase already created) -- unlike admin/connection/workflow, this
+# is a complete standalone profile, not a delta on top of a base "dev"
+# profile (export-import's application.yaml defines datasource/oidc/
+# export-import blocks ONLY inside profile files, never at the top level).
+spring:
+  datasource:
+    keycloak-service:
+      dialect: POSTGRES
+      driver-class-name: org.postgresql.Driver
+      url: jdbc:postgresql://localhost:15432/icedq_db
+      username: dbAdmin
+      password: devpassword
+      schema: keycloak
+    admin-service:
+      dialect: POSTGRES
+      driver-class-name: org.postgresql.Driver
+      url: jdbc:postgresql://localhost:15432/icedq_db
+      username: dbAdmin
+      password: devpassword
+      schema: iam
+    connection-service:
+      dialect: POSTGRES
+      driver-class-name: org.postgresql.Driver
+      url: jdbc:postgresql://localhost:15432/icedq_db
+      username: dbAdmin
+      password: devpassword
+      schema: conn
+    rule-repo-service:
+      dialect: POSTGRES
+      driver-class-name: org.postgresql.Driver
+      url: jdbc:postgresql://localhost:15432/icedq_db
+      username: dbAdmin
+      password: devpassword
+      schema: ruler
+    orchestration-service:
+      dialect: POSTGRES
+      driver-class-name: org.postgresql.Driver
+      url: jdbc:postgresql://localhost:15432/icedq_db
+      username: dbAdmin
+      password: devpassword
+      schema: orch
+    notification-service:
+      dialect: POSTGRES
+      driver-class-name: org.postgresql.Driver
+      url: jdbc:postgresql://localhost:15432/icedq_db
+      username: dbAdmin
+      password: devpassword
+      schema: notification
+
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: rabbitmq
+    password: rabbitmq
+    exchange: amq.fanout
+    routingkey: xx23-hj98-3459-yydk
+    isssl: false
+
+icedq:
+  security:
+    oidc:
+      base-url: http://localhost:8081
+      auth-url: ${icedq.security.oidc.base-url}/auth
+      client-id: icedq.executor
+      client-secret: 0edc406d-ba4a-477c-96f2-72be355d6d98
+      realm: iam.icedq
+      master-url: ${icedq.security.oidc.base-url}/auth/admin/realms/${icedq.security.oidc.realm}
+      issuer-url: ${icedq.security.oidc.base-url}/auth/realms/${icedq.security.oidc.realm}
+    enabled: true
+    allowed-methods:
+      - POST
+    allowed-origins:
+      - '*'
+    permitted-endpoints:
+      - /actuator/**
+
+  export-import:
+    metadata:
+      release: 7.1.0-snapshot
+      host: icedq-smoke
+      ip: 127.0.0.1
+      environment: DEV
+    export-files-dir: /app/export-import-data/export-files
+    import-files-dir: /app/export-import-data/import-files
+    logs-dir: /tmp/logs
+    service-user: service-account-icedq.import-service
+    fetch-size: 500
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
+      show-components: always
+
+cache:
+  initial-capacity: 100
+  expire-after-write-minutes: 1
+  time-to-live-minutes: 1
+  maximum-size: 100
+
+# logback.xml references logging.pattern.max-file-size/total-size-cap with no
+# default -- base application.yaml only sets these inside its own profile
+# files (dev-82/dev-onprem), boot fails without them ("maxFileSize property
+# is mandatory") since this profile doesn't chain on top of either.
+logging:
+  file:
+    name: ${icedq.export-import.logs-dir}/application.log
+  pattern:
+    max-file-size: 20MB
+    total-size-cap: 10GB
+    max-history: 60
+  path: ${icedq.export-import.logs-dir}

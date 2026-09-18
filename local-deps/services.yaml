@@ -1,0 +1,299 @@
+# Service graph for dev.sh. depends_on drives bring-up ORDER only -- not
+# networking. Every service (container or host-local) is reachable at
+# localhost:<port> because docker-compose publishes every port to the host,
+# so a locally-run service and a containerized one are addressed identically
+# by anything else. That's what makes running a mix of local/container
+# services actually work without per-pair wiring.
+#
+# mode: container-only  -> never run locally (no source repo here / not what
+#                           you're editing). dev.sh always runs these via
+#                           docker compose.
+# local:                -> present only on services dev.sh can ALSO run as a
+#                           plain host JVM process (`./dev.sh up <name>`).
+#
+# container: -> drives run-service.sh, the ONE generic script every
+#               docker_run_script: run-service.sh entry uses (replaces the
+#               14 near-identical per-service scripts this used to be).
+#   type: java_baked_profile        -> Spring profile baked into the image's
+#                                       own jar (e.g. admin's application-
+#                                       local.yaml); no config_file/mount.
+#         java_extra_classpath      -> config_file mounted to /app/extra-
+#                                       config/<basename>, activated via
+#                                       EXTRA_CLASSPATH.
+#         java_spring_config_location -> same mount, activated via
+#                                       SPRING_CONFIG_ADDITIONAL_LOCATION
+#                                       instead (connection's IDE-profile
+#                                       mechanism).
+#         frontend                 -> nginx golden-image envsubst frontend
+#                                       (ui-platform/ruleui) -- fixed env
+#                                       var list lives in run-service.sh
+#                                       itself, not duplicated per service.
+#         gateway                  -> nginx reverse-proxy, config_file
+#                                       mounted to /etc/nginx/conf.d/
+#                                       default.conf, no Spring anything.
+#   network: host | bridge (bridge == icedq-smoke-deps_default, needs -p)
+#   spring_profiles: final SPRING_PROFILES_ACTIVE value (java_* types only)
+#   config_file: filename in this dir (java_*/gateway types)
+#   extra_mounts: [{host, container}] beyond config_file (host relative to
+#                 this dir unless it starts with /)
+#   tmpfs: ["/container/path:opts", ...] passed straight to `docker --tmpfs`
+#   extra_env: {ENV_VAR: value} beyond the type's baseline
+#   health: {type: actuator_db | actuator_status | http_get | http_probe, ...}
+#     actuator_db/actuator_status: no extra fields (GET /actuator/health)
+#     http_get: {path} (GET, expect 200)
+#     http_probe: {path, method, body, codes: [...]}
+
+services:
+  postgres:
+    port: 15432
+    mode: container-only
+
+  rabbitmq:
+    port: 5672
+    mode: container-only
+
+  vault:
+    port: 8200
+    mode: container-only
+
+  keycloak:
+    port: 8081
+    mode: container-only
+    compose_profile: oidc
+
+  temporal:
+    port: 7233
+    mode: container-only
+
+  replicated:
+    port: 3000
+    mode: container-only
+
+  admin:
+    port: 9100
+    depends_on: [postgres, rabbitmq, vault, replicated]
+    docker_run_script: run-service.sh
+    default_image: icedqngdev.azurecr.io/admin-service:7.9.1-SNAPSHOT-DSO-9999
+    container:
+      type: java_baked_profile
+      network: host
+      spring_profiles: qa,smi,smi-hcp,local
+      extra_mounts:
+        - {host: /tmp/icedq-dev-generated, container: /tmp/icedq-dev-generated}
+      extra_env:
+        ICEDQ_PROPERTIES_LOCATION: /app/bin/
+        SPRING_LIQUIBASE_ENABLED: "true"
+        OTEL_SDK_DISABLED: "true"
+      health: {type: actuator_db}
+    local:
+      # In-repo pattern: application-local.yaml lives directly in
+      # ng-icedq-admin-service/src/main/resources/, auto-loaded by Spring
+      # via the "local" profile name -- no external file, no VM options
+      # EXCEPT vault_init below (a real file dev.sh generates docker-side,
+      # application-local.yaml points at it via an env var so the file
+      # itself never needs to live in the app repo).
+      main_class: org.icedq.admin.AdminApplication
+      spring_profiles: qa,smi,smi-hcp,local
+      vault_init: true
+
+  connection:
+    port: 9200
+    # workflow, not just the 3rd-party deps: connection's liquibase needs
+    # the "ruler" schema, which workflow's own liquibase creates -- boot
+    # order matters for up-all (a single service's `up <name>` never hits
+    # this, since only 3rd-party deps get containerized alongside it).
+    depends_on: [postgres, rabbitmq, vault, workflow]
+    docker_run_script: run-service.sh
+    default_image: proxy.icedq.com/proxy/icedq/icedq.azurecr.io/connection-repo-service:7.2.383
+    container:
+      type: java_spring_config_location
+      network: host
+      spring_profiles: smi,smi-hcp,dev
+      config_file: application-local-connection-ide.yaml
+      extra_mounts:
+        - {host: icedq-datatypes.json, container: /app/config/icedq-datatypes.json}
+      health: {type: actuator_db}
+    local:
+      main_class: org.icedq.connection.ConnectionApplication
+      spring_profiles: smi,smi-hcp,dev
+      ide_profile: application-local-connection-ide.yaml
+
+  workflow:
+    port: 9300
+    depends_on: [postgres, rabbitmq, vault]
+    docker_run_script: run-service.sh
+    default_image: proxy.icedq.com/proxy/icedq/icedq.azurecr.io/workflow:1.0.411
+    container:
+      type: java_extra_classpath
+      network: bridge
+      spring_profiles: smi,smi-hcp,dev,local-compose-workflow
+      config_file: application-local-compose-workflow.yaml
+      extra_mounts:
+        - {host: icedq-datatypes.json, container: /usr/lib/icedq/config/icedq-datatypes.json}
+      tmpfs: ["/app/icedq-instance-logs:rw,mode=1777"]
+      health: {type: actuator_db}
+    # No `local:` block yet -- no application-local-workflow-ide.yaml written.
+    # Add one (copy application-local-connection-ide.yaml's pattern) to
+    # enable `./dev.sh up workflow`.
+
+  ui-platform:
+    port: 8090
+    depends_on: [admin]
+    docker_run_script: run-service.sh
+    default_image: proxy.icedq.com/proxy/icedq/icedq.azurecr.io/ui-platform:0.0.477
+    container:
+      type: frontend
+      network: bridge
+      health: {type: http_get, path: /}
+    # Frontend (nginx+Angular) -- always container-only, "running it locally"
+    # means `ng serve` in its own repo, a different workflow entirely, not
+    # something dev.sh handles.
+
+  auditengine:
+    port: 9700
+    depends_on: [rabbitmq, vault]
+    docker_run_script: run-service.sh
+    default_image: proxy.icedq.com/proxy/icedq/icedq.azurecr.io/audit-engine-service:7.2.148
+    container:
+      type: java_extra_classpath
+      network: host
+      spring_profiles: smi,smi-hcp,dev,local-compose-auditengine
+      config_file: application-local-compose-auditengine.yaml
+      extra_env:
+        LOGGER_PATH: /app/icedq-auditengine/logs
+        POD_NAME: auditengine-local
+      health: {type: actuator_status}
+    # Pure RabbitMQ consumer + REST client -- no spring.datasource/liquibase.
+
+  scriptengine:
+    port: 9710
+    depends_on: [rabbitmq, vault]
+    docker_run_script: run-service.sh
+    default_image: proxy.icedq.com/proxy/icedq/icedq.azurecr.io/script-engine-service:7.2.90
+    container:
+      type: java_extra_classpath
+      network: host
+      spring_profiles: smi,smi-hcp,dev,local-compose-scriptengine
+      config_file: application-local-compose-scriptengine.yaml
+      tmpfs: ["/var/logs:rw", "/app/icedq-instance-logs:rw,mode=1777"]
+      health: {type: actuator_status}
+    # Pure RabbitMQ consumer + REST client -- no spring.datasource/liquibase.
+
+  scheduler:
+    port: 9150
+    depends_on: [postgres, rabbitmq, vault]
+    docker_run_script: run-service.sh
+    default_image: proxy.icedq.com/proxy/icedq/icedq.azurecr.io/scheduler-service:7.2.67
+    container:
+      type: java_extra_classpath
+      network: host
+      spring_profiles: dev,local-compose-scheduler
+      config_file: application-local-compose-scheduler.yaml
+      health: {type: actuator_db}
+
+  export-import:
+    port: 9091
+    depends_on: [postgres, rabbitmq]
+    docker_run_script: run-service.sh
+    default_image: proxy.icedq.com/proxy/icedq/icedq.azurecr.io/export-import:latest
+    container:
+      type: java_extra_classpath
+      network: host
+      spring_profiles: local-compose-export-import
+      config_file: application-local-compose-export-import.yaml
+      health: {type: actuator_status}
+    # No vault/liquibase -- jOOQ against schemas admin/connection/workflow's
+    # own liquibase already create.
+    #
+    # KNOWN BROKEN: this ":latest" tag does not exist in the registry
+    # ("manifest unknown: manifest tagged by 'latest' is not found",
+    # verified via `docker pull`). No known-good real tag was ever recorded
+    # for this service's onboarding commit, and this registry doesn't allow
+    # anonymous tag listing. Needs a real tag from whoever has registry
+    # access before this service can be pulled/run again.
+
+  rulegen:
+    port: 9323
+    depends_on: [postgres, rabbitmq, vault]
+    docker_run_script: run-service.sh
+    default_image: proxy.icedq.com/proxy/icedq/icedq.azurecr.io/rulegen-repo-service:7.2.131
+    container:
+      type: java_extra_classpath
+      network: host
+      spring_profiles: smi,smi-hcp,qa,local-compose-rulegen
+      config_file: application-local-compose-rulegen.yaml
+      extra_mounts:
+        - {host: icedq-datatypes.json, container: /app/icedq-rulegen/config/icedq-datatypes.json}
+      health: {type: actuator_db}
+
+  bitesting:
+    port: 9800
+    depends_on: [postgres, rabbitmq, vault]
+    docker_run_script: run-service.sh
+    default_image: proxy.icedq.com/proxy/icedq/icedq.azurecr.io/bitesting-service:latest
+    container:
+      type: java_extra_classpath
+      network: host
+      spring_profiles: dev-74,local-compose-bitesting
+      config_file: application-local-compose-bitesting.yaml
+      health: {type: actuator_db}
+
+  datawarehouse:
+    port: 9170
+    # admin: datawarehouse's application-local-compose-datawarehouse.yaml
+    # calls admin's base-url -- was icedq-admin-smoke:9100 (compose DNS),
+    # broken by admin's earlier --network host migration since admin is no
+    # longer on the bridge network; rewritten to localhost:9100 to match,
+    # so admin must be reachable (up) at boot the same way.
+    depends_on: [postgres, rabbitmq, vault, admin]
+    docker_run_script: run-service.sh
+    default_image: proxy.icedq.com/proxy/icedq/icedq.azurecr.io/data-warehouse-service:latest
+    container:
+      type: java_extra_classpath
+      network: host
+      spring_profiles: smi,smi-hcp,dev,local-compose-datawarehouse
+      config_file: application-local-compose-datawarehouse.yaml
+      extra_mounts:
+        - {host: icedq-datatypes.json, container: /usr/lib/icedq/config/icedq-datatypes.json}
+      health: {type: actuator_db}
+
+  notification:
+    port: 12300
+    # admin + workflow: same reasoning as datawarehouse above -- both were
+    # icedq-<svc>-smoke compose DNS names, rewritten to localhost to match
+    # admin's/this migration's --network host.
+    depends_on: [postgres, rabbitmq, vault, admin, workflow]
+    docker_run_script: run-service.sh
+    default_image: proxy.icedq.com/proxy/icedq/icedq.azurecr.io/notification-service:latest
+    container:
+      type: java_extra_classpath
+      network: host
+      spring_profiles: smi,smi-hcp,dev-74,local-compose-notification
+      config_file: application-local-compose-notification.yaml
+      health: {type: actuator_db}
+
+  ruleui:
+    port: 8091
+    depends_on: [admin, rulegen, workflow]
+    docker_run_script: run-service.sh
+    default_image: proxy.icedq.com/proxy/icedq/icedq.azurecr.io/rule-repo-ui:latest
+    container:
+      type: frontend
+      network: bridge
+      health: {type: http_get, path: /rule-ui/}
+    # Frontend (nginx), same golden-image mechanism as ui-platform -- see
+    # run-service.sh's frontend env var block.
+
+  api-gateway:
+    port: 9080
+    depends_on: [admin, connection, workflow]
+    docker_run_script: run-service.sh
+    default_image: nginx:1.27-alpine
+    container:
+      type: gateway
+      network: host
+      config_file: api-gateway.conf
+      health: {type: http_probe, method: POST, path: /api/v1/accounts/search, body: '{}', codes: [200, 401, 403]}
+    # Local ingress substitute -- routes /api/v1/* to admin/connection/
+    # workflow by path, same split as prod K8s ingress. api-gateway.conf
+    # hardcodes 127.0.0.1 backends, so this must stay --network host.

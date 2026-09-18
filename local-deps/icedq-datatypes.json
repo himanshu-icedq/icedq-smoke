@@ -1,0 +1,313 @@
+{
+    "datatypeMapper": [
+      {
+        "dataSourceType": "default",
+        "datatypes": {
+          "VARCHAR2": "TEXT",
+          "VARCHAR": "TEXT",
+          "NUMBER": "NUMERIC",
+          "TEXT": "TEXT",
+          "STRING": "TEXT",
+          "CHAR": "TEXT",
+          "NCHAR": "TEXT",
+          "NVARCHAR": "TEXT",
+          "NVARCHAR2": "TEXT",
+          "NVCHAR": "TEXT",
+          "NVCHAR2": "TEXT",
+          "BYTE": "TEXT",
+          "BYTES": "TEXT",
+          "RAW": "TEXT",
+          "SQL_VARIANT": "TEXT",
+          "VARIANT": "TEXT",
+          "OBJECT": "TEXT",
+          "ARRAY": "TEXT",
+          "BPCHAR": "TEXT",
+          "FLOAT4": "DOUBLE",
+          "FLOAT8": "DOUBLE",
+          "MONEY": "FLOAT",
+          "SMALLMONEY": "FLOAT",
+          "BINARY_FLOAT": "FLOAT",
+          "NTEXT": "TEXT",
+          "DOUBLE": "NUMERIC",
+          "DOUBLE PRECISION": "NUMERIC",
+          "BINARY_DOUBLE": "NUMERIC",
+          "FLOAT": "DOUBLE",
+          "INTEGER": "NUMERIC",
+          "INT": "NUMERIC",
+          "BIGINT": "LONG",
+          "REAL": "NUMERIC",
+          "DECIMAL": "NUMERIC",
+          "CLOB": "TEXT",
+          "BLOB": "BLOB",
+          "IMAGE": "TEXT",
+          "NUMERIC": "NUMERIC",
+          "BIT": "BOOLEAN",
+          "DATE": "DATE",
+          "TIME": "TIME",
+          "TIMESTAMP": "TIMESTAMP",
+          "TIMESTAMPNTZ": "TIMESTAMP",
+          "TIMESTAMPLTZ": "TIMESTAMP",
+          "LONG": "NUMERIC",
+          "UNSIGNED_BIGINT": "NUMERIC",
+          "TINYINT": "NUMERIC",
+          "SMALLINT": "NUMERIC",
+          "MEDIUMINT": "LONG",
+          "BOOLEAN": "BOOLEAN",
+          "TIMESTAMPTZ": "TIMESTAMP",
+          "VARBINARY": "TEXT",
+          "BINARY": "BYTE",
+          "LONGVARBINARY": "TEXT",
+          "DATETIME": "TIMESTAMP",
+          "DATETIME2": "TIMESTAMP",
+          "SMALLDATETIME": "TIMESTAMP",
+          "INT32": "INT",
+          "INT64": "INT",
+          "INT96": "INT",
+          "BYTE_ARRAY": "TEXT",
+          "TIMEMICROS": "TIMEMICROS",
+          "TIMEMILLIS": "TIMEMILLIS",
+          "TIMESTAMPMILLIS": "TIMESTAMPMILLIS",
+          "TIMESTAMPMICROS": "TIMESTAMPMICROS",
+          "INT2": "INT",
+          "INT4": "INT",
+          "INT8": "INT",
+          "NCLOB": "NCLOB",
+          "BFILE": "BFILE",
+          "JDBCINT32": "INT",
+          "JDBCDATE": "DATE",
+          "UINT8": "INT",
+          "UINT16": "INT",
+          "UINT32": "NUMERIC",
+          "UINT64": "NUMERIC",
+          "FLOAT32": "DOUBLE",
+          "FLOAT64": "DOUBLE",
+          "INT16": "INT",
+          "INT128": "NUMERIC",
+          "TIMESTAMP(6)": "TIMESTAMP"
+        }
+      },
+      {
+        "dataSourceType": "oracle",
+        "datatypes": {
+          "LONG": "BYTE",
+          "RAW": "TEXT",
+          "LONG RAW": "BYTE",
+          "BINARY_DOUBLE": "DOUBLE"
+        }
+      },
+      {
+        "dataSourceType": "sql-server",
+        "datatypes": {
+          "FLOAT": "DOUBLE",
+          "REAL": "DOUBLE",
+          "INT": "INT",
+          "TINYINT": "INT",
+          "SMALLINT": "INT",
+          "BIGINT": "LONG",
+          "MONEY": "NUMERIC",
+          "SMALLMONEY": "NUMERIC",
+          "NUMERIC": "NUMERIC"
+        }
+      },
+      {
+        "dataSourceType": "mysql",
+        "datatypes": {
+          "FLOAT": "DOUBLE",
+          "REAL": "FLOAT",
+          "INT": "INT",
+          "TINYINT": "INT",
+          "SMALLINT": "INT",
+          "BIGINT": "LONG",
+          "MONEY": "NUMERIC",
+          "SMALLMONEY": "NUMERIC",
+          "NUMERIC": "NUMERIC",
+          "TIME": "TIME",
+          "MEDIUMINT":"LONG"
+        }
+      },
+      {
+        "dataSourceType": "mariadb",
+        "datatypes": {
+          "MEDIUMINT": "LONG"
+        }
+      },
+      {
+        "dataSourceType": "denodo",
+        "datatypes": {
+          "SMALLINT": "INT",
+          "TINYINT": "INT",
+          "INTEGER": "INT",
+          "BIGINT": "LONG",
+          "DOUBLE": "DOUBLE",
+          "REAL": "DOUBLE",
+          "BINARY_DOUBLE": "DOUBLE"
+        }
+      },
+      {
+        "dataSourceType": "spark-sql",
+        "datatypes": {
+          "INT": "LONG",
+          "BIGINT": "NUMERIC",
+          "FLOAT": "DOUBLE"
+        }
+      },
+      {
+        "dataSourceType": "db2",
+        "datatypes": {
+          "SMALLINT": "INT",
+          "INTEGER": "INT",
+          "DOUBLE": "DOUBLE",
+          "BIGINT": "LONG",
+          "REAL": "FLOAT"
+        }
+      },
+      {
+        "dataSourceType": "sybase",
+        "datatypes": {
+          "SMALLINT": "INT",
+          "TINYINT": "INT",
+          "UNSIGNED BIGINT": "NUMERIC",
+          "DOUBLE PRECISION": "DOUBLE",
+          "INT": "INT",
+          "BIGINT": "LONG"
+        }
+      },
+      {
+        "dataSourceType": "teradata",
+        "datatypes": {
+          "SMALLINT": "INT",
+          "INTEGER": "INT",
+          "BIGINT": "LONG",
+          "PERIOD(DATE)": "STRUCT",
+          "PERIOD(TIME)": "STRUCT",
+          "PERIOD(TIME WITH TIME ZONE)": "STRUCT",
+          "PERIOD(TIMESTAMP WITH TIME ZONE)": "STRUCT",
+          "PERIOD(TIMESTAMP)": "STRUCT"
+        }
+      },
+      {
+        "dataSourceType": "snowflake",
+        "datatypes": {
+          "DOUBLE": "DOUBLE"
+        }
+      },
+      {
+        "dataSourceType": "MSSQLII",
+        "datatypes": {
+          "FLOAT": "DOUBLE",
+          "REAL": "FLOAT",
+          "INT": "INT",
+          "TINYINT": "INT",
+          "SMALLINT": "INT",
+          "BIGINT": "LONG"
+        }
+      },
+      {
+        "dataSourceType": "postgresql",
+        "datatypes": {
+          "BPCHAR": "TEXT",
+          "INT2": "SHORT",
+          "INT4": "INTEGER",
+          "INT8": "LONG",
+          "NUMERIC": "NUMERIC",
+          "FLOAT8": "DOUBLE",
+          "TIME": "TIMESTAMP",
+          "BOOL": "BOOLEAN",
+          "BIT": "BOOLEAN",
+          "VARBIT": "TEXT",
+          "MONEY": "TEXT",
+          "TIMETZ": "TIMESTAMP"
+        }
+      },
+      {
+        "dataSourceType": "apache-impala",
+        "datatypes": {
+          "BIGINT": "LONG",
+          "INT": "INT",
+          "TINYINT": "INT",
+          "SMALLINT": "INT",
+          "DOUBLE": "DOUBLE"
+        }
+      },
+      {
+        "dataSourceType": "apache-hive",
+        "datatypes": {
+          "BIGINT": "LONG",
+          "INT": "INT"
+        }
+      },
+      {
+        "dataSourceType": "cloudera-hive",
+        "datatypes": {
+          "BIGINT": "LONG",
+          "INT": "INT",
+          "BINARY": "BYTE"
+        }
+      },
+      {
+        "dataSourceType": "cloudera-impala",
+        "datatypes": {
+          "BIGINT": "LONG",
+          "INT": "INT",
+          "BINARY": "BYTE"
+        }
+      },
+      {
+        "dataSourceType": "Text",
+        "datatypes": {
+          "REAL": "FLOAT"
+        }
+      },
+      {
+        "dataSourceType": "AVRO",
+        "datatypes": {
+          "INT": "INT",
+          "LONG": "LONG",
+          "DOUBLE": "DOUBLE",
+          "TIMEMILLIS": "INT",
+          "TIMEMICROS": "LONG",
+          "TIMESTAMPMICROS": "TIMESTAMP",
+          "TIMESTAMPMILLIS": "TIMESTAMP"
+        }
+      },
+      {
+        "dataSourceType": "GREENPLUM",
+        "datatypes": {
+          "FLOAT4": "FLOAT",
+          "FLOAT8":"DOUBLE",
+          "INT8": "LONG"
+        }
+      },
+      {
+        "dataSourceType": "REDSHIFT",
+        "datatypes": {
+          "FLOAT4": "FLOAT",
+          "FLOAT8":"DOUBLE",
+          "INT8": "LONG"
+        }
+      },
+      {
+        "dataSourceType": "PARQUET",
+        "datatypes": {
+          "INT": "INT",
+          "DOUBLE": "DOUBLE",
+          "TIMEMILLIS": "INT",
+          "TIMEMICROS": "LONG",
+          "TIMESTAMPMICROS": "TIMESTAMP",
+          "TIMESTAMPMILLIS": "TIMESTAMP"
+        }
+      },
+      {
+        "dataSourceType": "CLICKHOUSE",
+        "datatypes": {
+          "INT64": "LONG"
+        }
+      },
+      {
+        "dataSourceType": "sap-hana",
+        "datatypes": {
+          "ARRAY": "ARRAY"
+        }
+      }
+    ]
+  }

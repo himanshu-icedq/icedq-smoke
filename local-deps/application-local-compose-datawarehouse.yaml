@@ -1,0 +1,89 @@
+# Derived from datawarehouse/src/main/resources/application-dev.yaml (the
+# base application.yaml's default active profile "dev-82" no longer exists
+# in the repo -- application-dev.yaml is the closest real profile). Same
+# smi/smi-hcp secret-manager-integration library as admin/connection/
+# workflow (confirmed via base application.yaml's spring.liquibase.parameters
+# + SchemaConfig.java), so the same TOKEN-auth vault override applies.
+---
+spring:
+  cloud:
+    vault:
+      uri: http://localhost:8200
+      enabled: true
+      authentication: TOKEN
+      token: root
+  datasource:
+    url: jdbc:postgresql://localhost:15432/icedq_db
+    driver: org.postgresql.Driver
+    username: dbAdmin
+    password: devpassword
+    hikari:
+      minimumIdle: 1
+      maximumIdle: 2
+      maximumPoolSize: 25
+      idleTimeout: 15000
+      connectionTimeout: 300000
+      leakDetectionThreshold: 60000
+      maxLifetime: 600000
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: rabbitmq
+    password: rabbitmq
+    isssl: false
+  temporal:
+    connection:
+      target: 127.0.0.1:7233
+    namespace: default
+
+icedq:
+  security:
+    oidc:
+      base-url: http://localhost:8081
+      auth-url: ${icedq.security.oidc.base-url}/auth
+      client-id: icedq.executor
+      client-secret: 0edc406d-ba4a-477c-96f2-72be355d6d98
+      realm: iam.icedq
+      master-url: ${icedq.security.oidc.base-url}/auth/admin/realms/${icedq.security.oidc.realm}
+      issuer-url: ${icedq.security.oidc.base-url}/auth/realms/${icedq.security.oidc.realm}
+    permitted-endpoints:
+      - /index.html
+      - /swagger-ui.html
+      - /swagger-ui/*
+      - /v3/**
+      - /actuator/**
+    enabled: true
+    api-matcher: /**
+    allowed-methods:
+      - OPTIONS
+      - POST
+      - GET
+      - PUT
+      - DELETE
+    allowed-origins:
+      - '*'
+    setting:
+      hashedKey: A7cCPpRp66Kvz9j8HRpq3mea7yTtccstK0wSLsp5k18=
+      vault:
+        base-url: http://localhost:8200
+        # dev.yaml's "icedqvault" mount doesn't exist locally -- vault-init
+        # (docker-compose.yml) enables "icedq-secretvault" instead, same
+        # mount admin's own local-compose config uses for this same key.
+        path: /v1/icedq-secretvault/data/ice-master-key
+        encryptpath: /v1/hashing/encrypt/
+        decryptpath: /v1/hashing/decrypt/
+  outbound-service:
+    admin:
+      base-url: http://localhost:9100
+      authorization-evaluate: /api/v1/authorization:evaluate
+      license-info: /api/v1/license
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
+      show-components: always

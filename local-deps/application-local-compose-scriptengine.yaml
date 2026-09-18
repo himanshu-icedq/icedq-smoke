@@ -1,0 +1,72 @@
+---
+# Local-compose overrides for script-engine-service, derived from the real
+# application-dev.yaml bundled in the 7.2.90 image (extracted via docker cp
+# -- no source repo checked out locally for this service). scriptengine has
+# no spring.datasource/liquibase at all -- it's a pure RabbitMQ
+# consumer + REST client to admin/workflow/connection-repo/rule-repo, no
+# schema needed.
+spring:
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: rabbitmq
+    password: rabbitmq
+    isssl: false
+  cloud:
+    # smi-hcp library generates a data-encryption key at BOOT (not lazy) --
+    # without this it fails with "Cannot retrieve VaultToken from
+    # authentication chain". Same fix as admin-service and auditengine.
+    vault:
+      uri: http://localhost:8200
+      enabled: true
+      authentication: TOKEN
+      token: root
+icedq:
+  security:
+    oidc:
+      base-url: http://localhost:8081
+      auth-url: ${icedq.security.oidc.base-url}/auth
+      client-id: icedq.executor
+      client-secret: 0edc406d-ba4a-477c-96f2-72be355d6d98
+      realm: iam.icedq
+      master-url: ${icedq.security.oidc.base-url}/auth/admin/realms/${icedq.security.oidc.realm}
+      issuer-url: ${icedq.security.oidc.base-url}/auth/realms/${icedq.security.oidc.realm}
+    setting:
+      hashedKey: A7cCPpRp66Kvz9j8HRpq3mea7yTtccstK0wSLsp5k18=
+    vault:
+      # Real local vault -- vault-init only creates icedq-secretvault, not
+      # the remote cluster's "icedqvault" mount (same fix as auditengine).
+      base-url: http://localhost:8200
+      path: /v1/icedq-secretvault/data/ice-master-key
+      encryptpath: /v1/hashing/encrypt/
+      decryptpath: /v1/hashing/decrypt/
+      provider: HCP
+      kms-key: 95485d12-70c0-48de-8867-1df7318c74f3
+      region: us-east-1
+  outbound-service:
+    admin:
+      base-url: http://icedq-admin-smoke:9100
+      resources: /api/v1/roles/resources/{memberType}/{resourceType}
+      hashKey: /api/v1/setting/info/{key}
+      has-permission: /api/v1/authorization:evaluate
+      search-library: api/v1/libraries/search
+    workflow-instance:
+      base-url: http://icedq-workflow-smoke:9300
+      generate-instance-id: /api/v1/workflowruns:generateInstanceId
+    connection-repo:
+      base-url: http://icedq-connection-smoke:9200
+      secret: /api/v1/internal/secret/{id}
+    rule-repo:
+      base-url: http://icedq-workflow-smoke:9300
+      udf-info: /api/v1/custom-classes/internal
+      patch-parameters: /api/v1/internal/parameters/{id}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
+      show-components: always
+...

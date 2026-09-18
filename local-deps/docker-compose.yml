@@ -1,0 +1,192 @@
+name: icedq-smoke-deps
+
+# Dependency-only stack for smoke-testing a freshly built admin-service image.
+# No Kong, no UI, no k8s at all — just the things admin-service actually talks
+# to at boot. See README.md for the tradeoff (this isn't representative of
+# prod ordering/networking, it's a fast proof-of-life check).
+#
+# Speed choices, all safe because this stack is thrown away after each run:
+#   - postgres/rabbitmq: alpine images, fsync/durability off (tmpfs data dir)
+#   - keycloak: start-dev mode
+#   - vault: -dev mode — auto-initializes AND auto-unseals with a fixed root
+#     token on boot. This is the single biggest win: it eliminates the whole
+#     init/unseal race that ate most of a day in the k8s setup, because dev
+#     mode is *always* already initialized and unsealed, no check-then-act
+#     window to race against. Confirmed: healthy in ~6s.
+#   - temporal: official auto-setup image, bundles frontend+history+matching+
+#     worker into one container and runs its own schema setup on first boot.
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: dbAdmin
+      POSTGRES_PASSWORD: devpassword
+      POSTGRES_DB: icedq_db
+    command: ["postgres", "-c", "fsync=off", "-c", "synchronous_commit=off", "-c", "full_page_writes=off"]
+    tmpfs:
+      - /var/lib/postgresql/data
+    volumes:
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    ports:
+      - "15432:5432" # host 5432 may already be taken by something else on your box
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dbAdmin -d icedq_db"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  rabbitmq:
+    image: rabbitmq:4-alpine
+    user: rabbitmq # reduces (doesn't eliminate) the eacces race below — see docker-library/rabbitmq#318
+    environment:
+      RABBITMQ_DEFAULT_USER: rabbitmq
+      RABBITMQ_DEFAULT_PASS: rabbitmq
+      # Fixed value instead of letting rabbitmq generate+write one at boot —
+      # tmpfs alone only reduced the .erlang.cookie permission race, it didn't
+      # eliminate it (confirmed via 5-run benchmark: 3/5 runs failed on this
+      # exact race even with tmpfs). A fixed cookie removes the write race
+      # entirely since there's nothing left to generate.
+      RABBITMQ_ERLANG_COOKIE: icedq-local-smoke-test-cookie
+    tmpfs:
+      - /var/lib/rabbitmq
+    ports:
+      - "5672:5672"
+    # Even with a fixed cookie value, rabbitmq's entrypoint still WRITES it to
+    # /var/lib/rabbitmq/.erlang.cookie on every boot, and that write itself
+    # intermittently races on a fresh volume mount ("eacces" reading the file
+    # it just wrote) — confirmed via 5-run benchmark: this exact error
+    # recurred even after fixing the cookie value. This is a known,
+    # unresolved upstream Docker volume-init race, never fully root-caused
+    # even years later: docker-library/rabbitmq#318, #571, #171.
+    # The original #318 reporter's own conclusion, confirmed by us: "simply
+    # restarting the container does fix the issue" — restart-on-failure below
+    # is the community-standard mitigation, not a workaround of our own.
+    restart: on-failure:5
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  keycloak:
+    # Opt-in only (`docker compose --profile oidc up -d`) — empirically
+    # confirmed admin-service does NOT need a live keycloak to boot
+    # (icedq.security.oidc.base-url is validated lazily, per-request, same
+    # pattern as the other icedq.outbound-service.* URLs). It was the single
+    # biggest bottleneck in this stack: ~35s of a 73s total bring-up (48%).
+    # Only bring it up if a test specifically needs real OIDC/JWT validation.
+    profiles: ["oidc"]
+    # The REAL icedq keycloak image (same one the helm chart deploys, see
+    # icedq/charts/keycloak/values.yaml) -- not vanilla keycloak. Bakes in
+    # the real "icedq" theme (fixes CUSTOM-THEME 404s vanilla keycloak
+    # can't serve) and whatever SPI providers/event-listeners the real
+    # deployment uses.
+    image: proxy.icedq.com/proxy/icedq/icedq.azurecr.io/keycloak:7.3.19
+    # --import-realm loads keycloak-realm-iam-icedq.json on startup (idempotent
+    # if the realm already exists) — a real "iam.icedq" realm with the exact
+    # clients/secrets/realm role the app configs already point at, instead of
+    # a bare fresh instance that can only ever 401. Realm name confirmed by
+    # grepping the actual compiled ui-platform main.js (hardcoded there, not
+    # in any env var) — NOT the helm chart's "icedq" default, which is stale.
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      # Keycloak 17+ dropped the legacy /auth context path by default, but
+      # every app config here (KEYCLOAK_URL, icedq.security.oidc.auth-url)
+      # hardcodes .../auth — same as real deployments, which set this same
+      # var. Confirmed via openid-configuration: root path had no /auth.
+      KC_HTTP_RELATIVE_PATH: /auth
+    volumes:
+      - ./keycloak-realm-iam-icedq.json:/opt/keycloak/data/import/realm.json:ro
+    ports:
+      - "8081:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  vault:
+    image: hashicorp/vault:1.21
+    cap_add:
+      - IPC_LOCK
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: root
+      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+    ports:
+      - "8200:8200"
+    healthcheck:
+      # vault status defaults to https://127.0.0.1:8200 — this container is
+      # plain HTTP, so VAULT_ADDR must be set explicitly or every check fails.
+      test: ["CMD-SHELL", "VAULT_ADDR=http://127.0.0.1:8200 vault status"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  vault-init:
+    # One-shot: enables the two secret engines admin-service expects
+    # (icedq.secret-manager.hcp.* defaults baked into the app's own
+    # secret-manager-integration jar — see README.md). Idempotent: safe to
+    # rerun against an already-configured vault.
+    image: hashicorp/vault:1.21
+    environment:
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: root
+    depends_on:
+      vault:
+        condition: service_healthy
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        vault secrets enable -path=icedq-secretvault -version=2 kv || true
+        vault secrets enable -path=icedq-encryption transit || true
+        vault write -f icedq-encryption/keys/icedq-kek type=aes256-gcm96 || true
+        echo "vault-init: done"
+    restart: "no"
+
+  temporal:
+    image: temporalio/auto-setup:1.29
+    environment:
+      DB: postgres12
+      DB_PORT: 5432
+      POSTGRES_USER: dbAdmin
+      POSTGRES_PWD: devpassword
+      POSTGRES_SEEDS: postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "7233:7233"
+    healthcheck:
+      # temporal-server in this image binds only to the container's own IP,
+      # not loopback — "localhost" never succeeds even when fully healthy.
+      # This image's shell also doesn't support the /dev/tcp bashism, hence nc.
+      test: ["CMD-SHELL", "nc -z $(hostname -i) 7233"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+
+  replicated:
+    # NOT the real replicated-sdk-image — that image hard-requires a live
+    # k8s API at bootstrap (confirmed: fetches a "replicated-sdk" configmap
+    # for its replicated/app IDs, even with --integration-license-id) and
+    # can't run standalone in plain docker. This stub serves the same two
+    # endpoints admin-service calls (icedq.security.replicated.*) using the
+    # REAL license/licenseFields data pulled from the live .82 cluster's
+    # `replicated` k8s Secret — see replicated-stub.py and
+    # replicated-config.yaml (gitignored: production credential).
+    image: python:3.12-slim
+    working_dir: /app
+    volumes:
+      - ./replicated-stub.py:/app/replicated-stub.py:ro
+      - ./replicated-config.yaml:/etc/replicated/config.yaml:ro
+    command: sh -c "pip install --no-cache-dir --quiet pyyaml && python3 replicated-stub.py"
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:3000/api/v1/license/info')\""]
+      interval: 3s
+      timeout: 3s
+      retries: 30
